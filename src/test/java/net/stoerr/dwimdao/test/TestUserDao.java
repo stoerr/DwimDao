@@ -2,6 +2,7 @@ package net.stoerr.dwimdao.test;
 
 import static junit.framework.Assert.assertEquals;
 import static junit.framework.Assert.assertNull;
+import static junit.framework.Assert.assertTrue;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -14,6 +15,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.SimpleJdbcTemplate;
 import org.springframework.test.jdbc.SimpleJdbcTestUtils;
 
@@ -53,23 +55,29 @@ public class TestUserDao {
 
 	@Test
 	public void testCRUD() {
+		JdbcTemplate jdbc = new JdbcTemplate(datasource);
 		final User user = new User();
 		user.setFirstName("first");
 		user.setSecondName("second");
 		user.setId(17L);
-		dao.save(user);
+		jdbc.update(
+				"insert into user (id, firstname, secondname) values (?,?,?)",
+				user.getId(), user.getFirstName(), user.getSecondName());
+
 		assertEquals(user, dao.findById(user.getId()));
 		assertNull(dao.findById(42L));
-		assertEquals(user, dao.findByFirstName(user.getFirstName()));
-		assertNull(dao.findByFirstName("nix"));
+		assertEquals(user, dao.findByFirstName(user.getFirstName()).iterator()
+				.next());
+		assertTrue(dao.findByFirstName("nix").isEmpty());
 		assertEquals(
 				user,
 				dao.findByFirstNameAndSecondName(user.getFirstName(),
-						user.getSecondName()));
-		assertNull(dao.findByFirstNameAndSecondName(user.getFirstName(), "nix"));
-		assertNull(dao
-				.findByFirstNameAndSecondName("nix", user.getSecondName()));
-		dao.delete(user);
+						user.getSecondName()).iterator().next());
+		assertTrue(dao.findByFirstNameAndSecondName(user.getFirstName(), "nix").isEmpty());
+		assertTrue(dao
+				.findByFirstNameAndSecondName("nix", user.getSecondName()).isEmpty());
+
+		jdbc.update("delete from user where id=?", user.getId());
 		assertNull(dao.findById(user.getId()));
 	}
 
