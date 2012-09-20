@@ -16,7 +16,7 @@ import org.springframework.jdbc.core.simple.ParameterizedBeanPropertyRowMapper;
 
 /**
  * Yields an implementation for a DAO interface that tries to guess what to do
- * according to the method names. This is just an exploration how this might
+ * according to the method names. This is just a proof of concept how this might
  * work. Currently we support only beans where the table name is the class name
  * of the bean and the column names are the property names of the bean, and
  * finder methods that start with "findBy" and are followed by the column names
@@ -34,20 +34,27 @@ public class DwimDao implements InvocationHandler {
 	}
 
 	/**
-	 * Creates an Do-What-I-Mean implementation for the given Dao class.
+	 * Creates an Do-What-I-Mean implementation for the given DAO interface.
 	 * 
 	 * @param daoClass
+	 *            class of an interface with finder methods, not null.
 	 * @param datasource
-	 * @return
+	 *            the datasource to access, not null.
+	 * @return an implementation for the dao
 	 */
 	@SuppressWarnings("unchecked")
-	public static <DAOITF> DAOITF make(Class<DAOITF> daoClass,
-			DataSource datasource) {
+	public static <DAO> DAO make(Class<DAO> daoClass, DataSource datasource) {
 		DwimDao handler = new DwimDao(datasource);
-		return (DAOITF) Proxy.newProxyInstance(daoClass.getClassLoader(),
+		return (DAO) Proxy.newProxyInstance(daoClass.getClassLoader(),
 				new Class[] { daoClass }, handler);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see java.lang.reflect.InvocationHandler#invoke(java.lang.Object,
+	 * java.lang.reflect.Method, java.lang.Object[])
+	 */
 	public Object invoke(Object proxy, Method method, Object[] args)
 			throws Throwable {
 		if (method.getName().startsWith("findBy")) {
@@ -57,12 +64,13 @@ public class DwimDao implements InvocationHandler {
 				+ method);
 	}
 
+	/** Executes the finder, depending on its name and return type. */
 	private Object doFind(Method method, Object[] args) {
 		Type returnType = method.getGenericReturnType();
 		String argdescr = method.getName().substring("findBy".length());
 		if (returnType instanceof Class) {
 			Class<?> beanClass = (Class<?>) returnType;
-			String sql = createSql(argdescr, beanClass);
+			String sql = createFinderSql(argdescr, beanClass);
 			ParameterizedBeanPropertyRowMapper<?> rowmapper = ParameterizedBeanPropertyRowMapper
 					.newInstance(beanClass);
 			try {
@@ -76,7 +84,7 @@ public class DwimDao implements InvocationHandler {
 			Type[] typeargs = returnPType.getActualTypeArguments();
 			if (Collection.class.equals(rawType)) {
 				Class<?> beanClass = (Class<?>) typeargs[0];
-				String sql = createSql(argdescr, beanClass);
+				String sql = createFinderSql(argdescr, beanClass);
 				ParameterizedBeanPropertyRowMapper<?> rowMapper = ParameterizedBeanPropertyRowMapper
 						.newInstance(beanClass);
 				return jdbc.query(sql, rowMapper, args);
@@ -86,7 +94,11 @@ public class DwimDao implements InvocationHandler {
 				+ returnType);
 	}
 
-	private String createSql(String argdescr, Class<?> beanClass) {
+	/**
+	 * Creates a select statement according to the names of arguments in
+	 * argdescr, separated by And.
+	 */
+	private String createFinderSql(String argdescr, Class<?> beanClass) {
 		String[] argnames = argdescr.split("And");
 		StringBuilder buf = new StringBuilder("select * from ");
 		buf.append(beanClass.getSimpleName()).append(" where 1=1");

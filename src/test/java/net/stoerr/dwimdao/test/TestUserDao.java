@@ -53,8 +53,11 @@ public class TestUserDao {
 		ensureStayOpenConnection.close();
 	}
 
+	/**
+	 * Tests the finders defined in {@link UserDao}.
+	 */
 	@Test
-	public void testCRUD() {
+	public void testFinders() {
 		JdbcTemplate jdbc = new JdbcTemplate(datasource);
 		final User user = new User();
 		user.setFirstName("first");
@@ -73,9 +76,11 @@ public class TestUserDao {
 				user,
 				dao.findByFirstNameAndSecondName(user.getFirstName(),
 						user.getSecondName()).iterator().next());
-		assertTrue(dao.findByFirstNameAndSecondName(user.getFirstName(), "nix").isEmpty());
+		assertTrue(dao.findByFirstNameAndSecondName(user.getFirstName(), "nix")
+				.isEmpty());
 		assertTrue(dao
-				.findByFirstNameAndSecondName("nix", user.getSecondName()).isEmpty());
+				.findByFirstNameAndSecondName("nix", user.getSecondName())
+				.isEmpty());
 
 		jdbc.update("delete from user where id=?", user.getId());
 		assertNull(dao.findById(user.getId()));

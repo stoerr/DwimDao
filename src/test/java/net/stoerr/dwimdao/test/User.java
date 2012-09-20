@@ -1,5 +1,8 @@
 package net.stoerr.dwimdao.test;
 
+/**
+ * A simple value object that can be stored in the database.
+ */
 public class User {
 
 	private Long id;
