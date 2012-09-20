@@ -19,7 +19,8 @@ You create a DAO like this:
 
 UserDao dao = DwimDao.make(UserDao.class, datasource);
 
-and the finder methods on the UserDao interface can be used without ever being explicitly implemented.
+and the finder methods on the UserDao interface can be used without ever being explicitly implemented. Compare
+https://github.com/stoerr/DwimDao/tree/master/src/test/java/net/stoerr/dwimdao/test for a simple example.
 
 Ideas for extension
 -------------------
