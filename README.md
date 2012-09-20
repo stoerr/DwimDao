@@ -31,6 +31,7 @@ To make this really usable one would need to implement the following things.
   * perhaps the table name at class level
   * an explicitly provided SQL statement at method level
   * perhaps a special row mapper class at class level (currently ParameterizedBeanPropertyRowMapper is used)
-- Integration with spring: a way to specify / inject the datasource and / or a JdbcTemplate.
+- Integration with Spring: a way to specify / inject the datasource and / or a JdbcTemplate.
+- Rethink exception handling, especially for findBy single bean methods.
 
 Probably I should study ActiveRecord and the Groovy equivalent to find ideas. :-)
