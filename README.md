@@ -7,12 +7,16 @@ the DwimDao engine guesses from the method declarations what SQL statement is ne
  
 This is meant to be vaguely similar to Rails ActiveRecord (http://api.rubyonrails.org/classes/ActiveRecord/Base.html), but in Java.
 Currently, this is just a proof of concept. The DAO interface can contain methods named like findBy<First>[And<Field>]* that can return
-the stored value object or a collection of them. For example:
+the stored value object or a collection of them. The DwimDAO will guess the actual SQL from the method names. For cases where
+this guessing is not possible, one can give the SQL in a @DwimSQL annotation. For example:
 
 public interface UserDao {
 	User findById(Long id);
 	Collection<User> findByFirstName(String firstName);
 	Collection<User> findByFirstNameAndSecondName(String firstName, String secondName);
+	
+	@DwimSQL("select * from user where secondname like ?")
+	Collection<User> findBySecondNameLike(String secondnamepattern);
 }
 
 You create a DAO like this:
@@ -26,6 +30,7 @@ Ideas for extension
 -------------------
 
 To make this really usable one would need to implement the following things.
+- Implement non-bean Types like Strings and numbers for @DwimSQL
 - Implement "save", "delete", "deleteBy" methods
 - What to do about update methods?
 - Provide Annotations for:

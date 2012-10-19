@@ -6,6 +6,9 @@ import static junit.framework.Assert.assertTrue;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.TreeSet;
 
 import net.stoerr.dwimdao.DwimDao;
 
@@ -29,6 +32,7 @@ public class TestUserDao {
 
 	private JdbcDataSource datasource;
 	private Connection ensureStayOpenConnection;
+	private JdbcTemplate jdbc;
 
 	/**
 	 * Initializes the database and opens one ensureStayOpenConnection such that
@@ -45,6 +49,7 @@ public class TestUserDao {
 		SimpleJdbcTestUtils.executeSqlScript(
 				new SimpleJdbcTemplate(datasource), createScript, false);
 		dao = DwimDao.make(UserDao.class, datasource);
+		jdbc = new JdbcTemplate(datasource);
 	}
 
 	/** Closes the database by closing the last ensureStayOpenConnection. */
@@ -53,20 +58,24 @@ public class TestUserDao {
 		ensureStayOpenConnection.close();
 	}
 
+	private User createAndInsertUser(Long id, String firstName,
+			String secondName) {
+		final User user = new User();
+		user.setFirstName(firstName);
+		user.setSecondName(secondName);
+		user.setId(id);
+		jdbc.update(
+				"insert into user (id, firstname, secondname) values (?,?,?)",
+				user.getId(), user.getFirstName(), user.getSecondName());
+		return user;
+	}
+
 	/**
 	 * Tests the finders defined in {@link UserDao}.
 	 */
 	@Test
 	public void testFinders() {
-		JdbcTemplate jdbc = new JdbcTemplate(datasource);
-		final User user = new User();
-		user.setFirstName("first");
-		user.setSecondName("second");
-		user.setId(17L);
-		jdbc.update(
-				"insert into user (id, firstname, secondname) values (?,?,?)",
-				user.getId(), user.getFirstName(), user.getSecondName());
-
+		User user = createAndInsertUser(17L, "first", "second");
 		assertEquals(user, dao.findById(user.getId()));
 		assertNull(dao.findById(42L));
 		assertEquals(user, dao.findByFirstName(user.getFirstName()).iterator()
@@ -84,6 +93,15 @@ public class TestUserDao {
 
 		jdbc.update("delete from user where id=?", user.getId());
 		assertNull(dao.findById(user.getId()));
+	}
+
+	@Test
+	public void testDwimSQLAnnotation() {
+		createAndInsertUser(17L, "first", "second");
+		createAndInsertUser(18L, "first2", "second2");
+		createAndInsertUser(19L, "first3", "other");
+		Collection<User> secondnames = dao.findBySecondNameLike("%second%");
+		assertEquals(2, secondnames.size());
 	}
 
 }

@@ -59,46 +59,53 @@ public class DwimDao implements InvocationHandler {
 	 */
 	public Object invoke(final Object proxy, final Method method,
 			final Object[] args) throws Throwable {
+		if (method.isAnnotationPresent(DwimSQL.class))
+			return doDwimSQL(method, args);
 		if (method.getName().startsWith("findBy"))
-			return doFind(method, args);
-		throw new IllegalArgumentException("We don't understand method "
+			return doFind(method, args, null);
+		throw new UnsupportedOperationException("We don't understand method "
 				+ method);
 	}
 
-	/** Executes the finder, depending on its name and return type. */
-	private Object doFind(final Method method, final Object[] args) {
-		final Type returnType = method.getGenericReturnType();
-		final String argdescr = method.getName().substring("findBy".length());
-		if (returnType instanceof Class)
-			return handleBeanClassReturnType((Class<?>) returnType, args,
-					argdescr);
-		else if (returnType instanceof ParameterizedType)
-			return handleParameterizedReturnType(
-					(ParameterizedType) returnType, args, argdescr);
-		throw new IllegalArgumentException("We don't understand return type "
-				+ returnType);
+	/** Handles methods with {@link DwimSQL} annotation */
+	private Object doDwimSQL(Method method, Object[] args) {
+		String sql = method.getAnnotation(DwimSQL.class).value();
+		return doFind(method, args, sql);
 	}
 
+	/** Executes the finder, depending on its name and return type. */
+	private Object doFind(final Method method, final Object[] args, final String givensql) {
+		final Type returnType = method.getGenericReturnType();
+		if (returnType instanceof Class)
+			return handleBeanClassReturnType((Class<?>) returnType, args,
+					method.getName(), givensql);
+		else if (returnType instanceof ParameterizedType)
+			return handleParameterizedReturnType(
+					(ParameterizedType) returnType, args, method.getName(), givensql);
+		throw new UnsupportedOperationException("We don't understand return type "
+				+ returnType);
+	}
+	
 	private List<?> handleParameterizedReturnType(
 			final ParameterizedType returnType, final Object[] args,
-			final String argdescr) {
+			final String methodname, final String givensql) {
 		final Type rawType = returnType.getRawType();
 		final Type[] typeargs = returnType.getActualTypeArguments();
 		if (Collection.class.equals(rawType)) {
 			final Class<?> beanClass = (Class<?>) typeargs[0];
-			final String sql = createFinderSql(argdescr, beanClass);
+			final String sql = (null != givensql) ? givensql : createFinderSql(methodname, beanClass);
 			final ParameterizedBeanPropertyRowMapper<?> rowMapper = ParameterizedBeanPropertyRowMapper
 					.newInstance(beanClass);
 			return jdbc.query(sql, rowMapper, args);
 		}
-		throw new IllegalArgumentException("We don't understand return type "
+		throw new UnsupportedOperationException("We don't understand return type "
 				+ returnType);
 	}
 
 	private Object handleBeanClassReturnType(final Class<?> beanClass,
-			final Object[] args, final String argdescr) {
+			final Object[] args, final String methodname, String givensql) {
 		try {
-			final String sql = createFinderSql(argdescr, beanClass);
+			final String sql = (null != givensql) ? givensql : createFinderSql(methodname, beanClass);
 			final ParameterizedBeanPropertyRowMapper<?> rowmapper = ParameterizedBeanPropertyRowMapper
 					.newInstance(beanClass);
 			return jdbc.queryForObject(sql, args, rowmapper);
@@ -113,8 +120,9 @@ public class DwimDao implements InvocationHandler {
 	 * Creates a select statement according to the names of arguments in
 	 * argdescr, separated by And.
 	 */
-	private String createFinderSql(final String argdescr,
+	private String createFinderSql(final String methodname,
 			final Class<?> beanClass) {
+		final String argdescr = methodname.substring("findBy".length());
 		final String[] argnames = argdescr.split("And");
 		final StringBuilder buf = new StringBuilder("select * from ");
 		buf.append(beanClass.getSimpleName()).append(" where 1=1");
